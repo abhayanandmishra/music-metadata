@@ -1,0 +1,17 @@
+{
+  "_default": {
+    "genre": "Unknown"
+  },
+  "song_without_tags.mp3": {
+    "artist": "Unknown Artist",
+    "album": "Unknown Album",
+    "title": "Unknown Title",
+    "year": "2026"
+  },
+  "old_song_stem": {
+    "artist": "Recovered Artist",
+    "album": "Recovered Album",
+    "title": "Recovered Title",
+    "track": "1"
+  }
+}

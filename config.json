@@ -1,0 +1,70 @@
+{
+  "application": {
+    "default_pattern": "{album} ({year})- {title}",
+    "default_dry_run": true,
+    "write_metadata_default": true,
+    "description": "Application-level defaults"
+  },
+  "directories": {
+    "music_root": "music",
+    "input": "ip",
+    "output": "op",
+    "nochange": "nc",
+    "description": "Directory structure relative to music_root (music/ip, music/op, music/nc)"
+  },
+  "audio": {
+    "supported_extensions": [
+      ".mp3",
+      ".flac",
+      ".m4a",
+      ".aac",
+      ".ogg",
+      ".opus",
+      ".wav",
+      ".wma"
+    ],
+    "noise_words": [
+      "(Ghantalele.com)",
+      "Ghantalele",
+      "pagalnew",
+      "raagtune",
+      "320 kbps",
+      "290 kbps",
+      "128 kbps",
+      "official",
+      "lyrics",
+      "Ghantalele.com",
+      "Downloaded from"
+    ],
+    "description": "Audio format and metadata cleaning settings"
+  },
+  "metadata": {
+    "keys": [
+      "artist",
+      "title",
+      "album",
+      "track",
+      "genre",
+      "year",
+      "original",
+      "comments",
+      "albumartist",
+      "publisher",
+      "composer"
+    ],
+    "editable_keys": [
+      "artist",
+      "title",
+      "album",
+      "track",
+      "genre",
+      "year",
+      "comments",
+      "albumartist",
+      "publisher",
+      "composer"
+    ],
+    "year_pattern_regex": "(?:\\(|\\[)?\\b(?:19|20)\\d{2}\\b(?:\\)|\\])?",
+    "description": "Metadata field configuration"
+  }
+}
