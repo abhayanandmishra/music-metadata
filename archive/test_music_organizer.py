@@ -3,15 +3,14 @@ import tempfile
 import unittest
 from unittest import mock
 from pathlib import Path
-import importlib.util
 
+import music_organizer
+from music_organizer import config
+from music_organizer.core import metadata as rm
+from music_organizer.analysis import audio_quality as aq
 
-MODULE_PATH = Path(__file__).with_name("music_organizer.py")
-spec = importlib.util.spec_from_file_location("music_organizer", MODULE_PATH)
-rm = importlib.util.module_from_spec(spec)
-assert spec and spec.loader
-spec.loader.exec_module(rm)
-rm.load_config()
+# Load config for global variables
+config.load_config()
 
 
 class RenameMusicTests(unittest.TestCase):
@@ -305,6 +304,117 @@ class RenameMusicTests(unittest.TestCase):
             self.assertEqual(processed, 1)
             self.assertFalse(any(op.iterdir()))
             self.assertEqual(len(list(nc.iterdir())), 1)
+
+
+class AudioQualityAnalyzerTests(unittest.TestCase):
+    def setUp(self):
+        self.analyzer = aq.AudioQualityAnalyzer()
+        self.analyzer.ffmpeg_available = True
+
+    def test_extract_ffmpeg_metric_prefers_last_match(self):
+        text = """
+        Overall RMS level dB: -18.2
+        RMS level dB: -20.0
+        """
+        value = self.analyzer._extract_ffmpeg_metric(text, [r"Overall RMS level dB:\s*(-?\d+(?:\.\d+)?)", r"RMS level dB:\s*(-?\d+(?:\.\d+)?)"])
+        self.assertEqual(value, "-18.2")
+
+    def test_extract_metrics_uses_format_fallbacks(self):
+        probe_json = json.dumps(
+            {
+                "streams": [
+                    {
+                        "codec_name": "mp3",
+                        "bit_rate": None,
+                        "sample_rate": "44100",
+                        "channels": "2",
+                        "duration": None,
+                    }
+                ],
+                "format": {
+                    "bit_rate": "192000",
+                    "duration": "123.45",
+                },
+            }
+        )
+
+        def fake_run(cmd, capture_output=False, text=False, timeout=None, stdout=None, stderr=None):
+            if cmd[0] == "ffprobe":
+                return mock.Mock(returncode=0, stdout=probe_json, stderr="")
+            if cmd[0] == "ffmpeg":
+                stderr_text = """
+                Overall RMS level dB: -18.0
+                Overall peak level dB: -1.5
+                Overall crest factor: 8.0
+                Overall number of clipped samples: 10
+                Overall number of samples: 1000
+                """
+                return mock.Mock(returncode=0, stdout="", stderr=stderr_text)
+            raise AssertionError(f"Unexpected command: {cmd}")
+
+        with mock.patch.object(aq.subprocess, "run", side_effect=fake_run):
+            metrics = self.analyzer._extract_metrics(Path("sample.mp3"))
+
+        self.assertEqual(metrics["bitrate"], 192)
+        self.assertEqual(metrics["sample_rate"], 44100)
+        self.assertEqual(metrics["channels"], 2)
+        self.assertEqual(metrics["duration"], 123.45)
+        self.assertEqual(metrics["loudness_mean"], -18.0)
+        self.assertEqual(metrics["loudness_peak"], -1.5)
+        self.assertEqual(metrics["clipping_ratio"], 0.01)
+        self.assertIsNotNone(metrics["sound_score"])
+
+    def test_analyze_returns_quality_score_and_tier(self):
+        with mock.patch.object(self.analyzer, "_extract_metrics", return_value={
+            "bitrate": 320,
+            "sample_rate": 48000,
+            "channels": 2,
+            "codec": "flac",
+            "duration": 180.0,
+            "is_lossless": True,
+            "loudness_mean": -14.0,
+            "loudness_peak": -1.0,
+            "clipping_ratio": 0.0,
+            "dynamic_range": 10.0,
+            "bass_level": -18.0,
+            "treble_level": -20.0,
+            "bass_score": 10.0,
+            "treble_score": 10.0,
+            "sound_score": 10.0,
+            "error": None,
+        }):
+            result = self.analyzer.analyze(Path("sample.flac"))
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["quality_score"], 9.5)
+        self.assertEqual(result["quality_tier"], "excellent")
+        self.assertTrue(result["is_lossless"])
+
+    def test_format_metrics_includes_audio_properties(self):
+        text = self.analyzer.format_metrics(
+            {
+                "success": True,
+                "quality_score": 7.5,
+                "quality_tier": "good",
+                "codec": "mp3",
+                "is_lossless": False,
+                "bitrate": 192,
+                "sample_rate": 44100,
+                "channels": 2,
+                "duration": 123.0,
+                "loudness_mean": -16.0,
+                "loudness_peak": -2.0,
+                "dynamic_range": 8.0,
+                "clipping_ratio": 0.0,
+                "bass_score": 6.0,
+                "treble_score": 7.0,
+                "sound_score": 8.0,
+            }
+        )
+        self.assertIn("Quality Score: 7.5/10", text)
+        self.assertIn("Loudness (RMS): -16.0 dB", text)
+        self.assertIn("Bass Score: 6.0/10", text)
+        self.assertIn("Sound Score: 8.0/10", text)
 
 
 if __name__ == "__main__":
