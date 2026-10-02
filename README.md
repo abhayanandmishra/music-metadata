@@ -16,6 +16,57 @@ This Python tool organizes music files by cleaning metadata, writing cleaned tag
 - Organizes files into `music/ip` (input), `music/op` (processed output), and `music/nc` (no-change / unresolved)
 - Generates a JSON report by default and supports report validation
 
+## Current Architecture
+
+The codebase has been refactored into a modular package structure for maintainability and scalability. The monolithic script (~1185 lines) is now organized as follows:
+
+### Package Structure
+
+```
+music_organizer/
+├── __init__.py                 # Package initialization
+├── config.py                   # Configuration loading
+│
+├── analysis/
+│   ├── __init__.py
+│   └── audio_quality.py        # FFmpeg-based audio quality scoring
+│
+├── logging/
+│   ├── __init__.py
+│   └── logger.py               # Logging infrastructure (singleton pattern)
+│
+├── core/
+│   ├── __init__.py
+│   ├── metadata.py             # Read/clean/write metadata operations
+│   ├── formatter.py            # Report validation and display
+│   └── workflow.py             # File processing pipeline
+│
+├── cli.py                      # CLI command-line interface
+└── gui.py                      # Tkinter GUI application
+```
+
+### Module Responsibilities
+
+| Module | Purpose |
+|--------|---------|
+| `config.py` | Load configuration from JSON, provide global defaults |
+| `analysis/audio_quality.py` | FFmpeg/ffprobe integration, audio quality scoring (1-10 scale) |
+| `logging/logger.py` | Dual-stream logging (stdout/stderr) with optional file output |
+| `core/metadata.py` | Audio metadata read/write, cleaning rules, tag parsing |
+| `core/formatter.py` | JSON report generation and validation |
+| `core/workflow.py` | Main processing pipeline: find → clean → fill → analyze → organize |
+| `cli.py` | Command-line argument parsing and execution |
+| `gui.py` | Tkinter-based graphical interface |
+
+### Entry Points
+
+- **CLI**: `python -m music_organizer [options]`
+- **GUI**: `python -m music_organizer` (no arguments)
+
+### Backward Compatibility
+
+The refactored structure maintains full backward compatibility while providing cleaner code organization. All functionality is preserved with zero feature loss.
+
 ## Example
 
 ```bash
@@ -104,10 +155,10 @@ Validate a generated report:
 python music_organizer.py --validate-report "music/music_organizer_report.json"
 ```
 
-Or run helper script (double-click friendly):
+Alternatively, use the Python validation function directly:
 
 ```bash
-python validate_report.py
+python -c "from music_organizer.core.formatter import validate_report; import json; validate_report(json.load(open('music/music_organizer_report.json')))"
 ```
 
 Directory structure:
@@ -135,12 +186,16 @@ GUI includes:
 - Apply clean rules, save metadata, rename selected, process all
 - Dry-run and metadata-write toggles
 
-## Prompt Specs
+## Archive
 
-Dedicated prompt/spec files are included:
+Legacy files and planning documents have been moved to the `archive/` directory:
 
-- `planning.prompt.md`
-- `implementation.prompt.md`
+- `GAP_ANALYSIS.md` - Initial analysis notes
+- `plan-prompt.md`, `impl-prompt.md` - Planning and implementation specs
+- `copilot-instructions.md` - Legacy instructions
+- `metadata_patch.json` - Legacy metadata configuration
+- `software-install.ps1` - Legacy installation script
+- Legacy wrappers: `music_organizer.py`, `test_music_organizer.py`, `validate_report.py`
 
 ## Install
 

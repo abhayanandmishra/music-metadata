@@ -1,6 +1,6 @@
 {
   "application": {
-    "default_pattern": "{album} ({year})- {title}",
+    "default_pattern": "{album} - {title}",
     "default_dry_run": true,
     "write_metadata_default": true,
     "description": "Application-level defaults"
